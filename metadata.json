@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Personal AI Assistant",
+  "description": "A comprehensive personal productivity, work management, and communication assistant powered by Gemini.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
