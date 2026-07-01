@@ -89,6 +89,373 @@ For your response:
   }
 });
 
+// Helper: Normalize URL
+function normalizeUrl(inputUrl: string): string {
+  let cleaned = inputUrl.trim();
+  if (!cleaned) {
+    throw new Error("URL cannot be empty");
+  }
+  
+  // Strip trailing slashes and spacing
+  cleaned = cleaned.replace(/\/+$/, "");
+  
+  if (!/^https?:\/\//i.test(cleaned)) {
+    cleaned = "https://" + cleaned;
+  }
+  
+  try {
+    const parsed = new URL(cleaned);
+    if (!parsed.hostname || !parsed.hostname.includes(".")) {
+      throw new Error("Invalid website domain structure");
+    }
+    return parsed.href;
+  } catch (err: any) {
+    throw new Error("Invalid website URL format");
+  }
+}
+
+// Helper: Fetch URL with 8s timeout and user-agent
+async function fetchWebsiteHtml(url: string): Promise<{ html: string; fetched: boolean; error?: string }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 SeniorWebAuditor/1.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5"
+      }
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return {
+        html: "",
+        fetched: false,
+        error: `HTTP ${response.status} ${response.statusText}`
+      };
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("text/html")) {
+      return {
+        html: "",
+        fetched: false,
+        error: `Expected HTML content type but received "${contentType}"`
+      };
+    }
+
+    const html = await response.text();
+    return { html, fetched: true };
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    let errMsg = err.message || "Unknown fetching error";
+    if (err.name === "AbortError" || err.message?.includes("aborted")) {
+      errMsg = "Request timeout (the server took too long to respond)";
+    }
+    return {
+      html: "",
+      fetched: false,
+      error: errMsg
+    };
+  }
+}
+
+// Helper: Regex metadata extraction
+function extractMetadata(html: string, baseUrl: string) {
+  let title = "";
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (titleMatch) {
+    title = titleMatch[1].trim();
+  }
+
+  let description = "";
+  const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([\s\S]*?)["']/i) || 
+                    html.match(/<meta[^>]*content=["']([\s\S]*?)["'][^>]*name=["']description["']/i);
+  if (descMatch) {
+    description = descMatch[1].trim();
+  }
+
+  let robots = "";
+  const robotsMatch = html.match(/<meta[^>]*name=["']robots["'][^>]*content=["']([\s\S]*?)["']/i) ||
+                      html.match(/<meta[^>]*content=["']([\s\S]*?)["'][^>]*name=["']robots["']/i);
+  if (robotsMatch) {
+    robots = robotsMatch[1].trim();
+  }
+
+  let canonical = "";
+  const canonicalMatch = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([\s\S]*?)["']/i);
+  if (canonicalMatch) {
+    canonical = canonicalMatch[1].trim();
+  }
+
+  let hasViewport = false;
+  const viewportMatch = html.match(/<meta[^>]*name=["']viewport["']/i);
+  if (viewportMatch) {
+    hasViewport = true;
+  }
+
+  const h1s: string[] = [];
+  const h1Regex = /<h1[^>]*>([\s\S]*?)<\/h1>/gi;
+  let match;
+  while ((match = h1Regex.exec(html)) !== null && h1s.length < 5) {
+    const text = match[1].replace(/<[^>]*>/g, "").trim();
+    if (text) h1s.push(text);
+  }
+
+  const h2s: string[] = [];
+  const h2Regex = /<h2[^>]*>([\s\S]*?)<\/h2>/gi;
+  while ((match = h2Regex.exec(html)) !== null && h2s.length < 8) {
+    const text = match[1].replace(/<[^>]*>/g, "").trim();
+    if (text) h2s.push(text);
+  }
+
+  let totalImages = 0;
+  let imagesWithoutAlt = 0;
+  const imgRegex = /<img([^>]+)>/gi;
+  while ((match = imgRegex.exec(html)) !== null && totalImages < 100) {
+    totalImages++;
+    const imgAttributes = match[1];
+    if (!/alt\s*=\s*["']/i.test(imgAttributes) || /alt\s*=\s*["']\s*["']/i.test(imgAttributes)) {
+      imagesWithoutAlt++;
+    }
+  }
+
+  let internalLinks = 0;
+  let externalLinks = 0;
+  const linkRegex = /href=["'](https?:\/\/[^\s"'<>]+|#[^\s"'<>]*|\/[^\s"'<>]*)/gi;
+  const domainMatch = baseUrl.match(/https?:\/\/([^\/]+)/i);
+  const domain = domainMatch ? domainMatch[1] : "";
+
+  while ((match = linkRegex.exec(html)) !== null) {
+    const href = match[1];
+    if (href.startsWith("http")) {
+      if (domain && href.includes(domain)) {
+        internalLinks++;
+      } else {
+        externalLinks++;
+      }
+    } else {
+      internalLinks++;
+    }
+  }
+
+  let hasSchema = false;
+  const schemaRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  if (schemaRegex.test(html)) {
+    hasSchema = true;
+  }
+
+  return {
+    title,
+    description,
+    robots,
+    canonical,
+    hasViewport,
+    h1s,
+    h2s,
+    totalImages,
+    imagesWithoutAlt,
+    internalLinks,
+    externalLinks,
+    hasSchema
+  };
+}
+
+// 2. Real API Endpoint for Website Grading
+app.post("/api/grade-website", async (req, res) => {
+  try {
+    const { url: rawUrl } = req.body;
+    if (!rawUrl) {
+      return res.status(400).json({ error: "Invalid website URL", details: "Website URL is required." });
+    }
+
+    // Normalize URL
+    let targetUrl: string;
+    try {
+      targetUrl = normalizeUrl(rawUrl);
+    } catch (normalizeErr: any) {
+      return res.status(400).json({ error: "Invalid website URL", details: normalizeErr.message });
+    }
+
+    // Check Gemini API key existence
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      return res.status(500).json({
+        error: "Missing Gemini API key",
+        details: "The GEMINI_API_KEY environment variable is not defined. Please define it in the Secrets panel under Settings."
+      });
+    }
+
+    const ai = getGeminiClient();
+
+    // Fetch live website content
+    const fetchResult = await fetchWebsiteHtml(targetUrl);
+
+    // If website could not be fetched and returned a timeout specifically, let's catch it
+    if (!fetchResult.fetched && fetchResult.error?.includes("timeout")) {
+      return res.status(504).json({
+        error: "Request timeout",
+        details: `The server took too long to fetch the live content of "${targetUrl}". Details: ${fetchResult.error}`
+      });
+    }
+
+    // Note: if website fetch failed other than timeout (e.g. 403, 500, etc), we handle it gracefully inside prompt
+    let metadata: any = null;
+    if (fetchResult.fetched && fetchResult.html) {
+      metadata = extractMetadata(fetchResult.html, targetUrl);
+    }
+
+    const systemInstruction = `You are a Senior Web Auditor, SEO Specialist, and Conversion Optimization expert.
+Your task is to generate a comprehensive, professional website grade report.
+Analyze the target URL and metadata. Ensure your audit is highly realistic and tailored specifically to the website's industry/domain.
+You must return valid JSON only. Do not wrap the JSON in markdown blocks or backticks.`;
+
+    const promptText = `Please audit and grade the website: "${targetUrl}".
+${fetchResult.fetched && metadata ? `The crawler successfully fetched the homepage. Here is the technical HTML audit data:
+- Page Title: "${metadata.title || "None"}"
+- Meta Description: "${metadata.description || "None"}"
+- Meta Robots tag: "${metadata.robots || "None"}"
+- Canonical tag: "${metadata.canonical || "None"}"
+- Mobile viewport tag present: ${metadata.hasViewport}
+- Headings: H1s: ${JSON.stringify(metadata.h1s)}, H2s: ${JSON.stringify(metadata.h2s)}
+- Total <img> tags: ${metadata.totalImages}
+- Images missing 'alt' text: ${metadata.imagesWithoutAlt}
+- Internal links: ${metadata.internalLinks}
+- External links: ${metadata.externalLinks}
+- JSON-LD Structured Schema detected: ${metadata.hasSchema}` : `Note: Live fetching failed for "${targetUrl}" with error: "${fetchResult.error || "Connection blocked"}" (likely due to anti-scraping walls, Cloudflare firewall, or region blocks).
+Please conduct a high-fidelity synthetic audit of "${targetUrl}" based on your expert knowledge of this business. Include a direct notice/disclaimer in the 'finalSummary' highlighting that live scraping was blocked by the host, and the technical metrics have been synthetically simulated.`}
+
+You MUST return a valid JSON object matching this structure. Do NOT include markdown styling (\`\`\`json). Output ONLY the raw JSON string:
+{
+  "overallScore": 75,
+  "seoScore": 78,
+  "performanceScore": 64,
+  "accessibilityScore": 68,
+  "mobileScore": 80,
+  "conversionScore": 65,
+  "topIssues": [
+    {
+      "id": "issue-1",
+      "title": "Uncompressed high-resolution images",
+      "category": "Speed & Performance",
+      "priority": "high",
+      "impact": "Slows down initial page load considerably, causing high bounce rates on mobile.",
+      "action": "Compress all hero images and product listings using WebP/AVIF format and integrate lazy loading."
+    },
+    {
+      "id": "issue-2",
+      "title": "Missing structured schema markup",
+      "category": "SEO",
+      "priority": "high",
+      "impact": "Search engines fail to index B2B product catalogs, fasteners, or service specifications rich data.",
+      "action": "Inject JSON-LD Product schema on detail pages and Organization schema on the homepage."
+    }
+  ],
+  "highPriorityFixes": [
+    "Compress heavy website visuals and enable browser caching",
+    "Deploy product, organization, and local business JSON-LD schemas"
+  ],
+  "mediumPriorityFixes": [
+    "Enlarge tap target sizes to minimum 44x44px for tablet catalog searching filters",
+    "Adjust low-contrast footer and search input text colors to conform with WCAG AA"
+  ],
+  "lowPriorityFixes": [
+    "Reference XML sitemaps within your robots.txt file"
+  ],
+  "recommendations": [
+    "Add a drag-and-drop XLS/CSV multi-item part-number uploader directly to the RFQ cart layout"
+  ],
+  "finalSummary": "Provide an expert summary outlining the site's strongest areas and primary technical opportunities.",
+  "url": "${targetUrl}",
+  "scores": {
+    "seo": 78,
+    "speed": 64,
+    "mobile": 80,
+    "uiUx": 72,
+    "technical": 74,
+    "content": 82,
+    "accessibility": 68,
+    "conversion": 65
+  },
+  "issues": [
+    {
+      "id": "1",
+      "title": "Uncompressed high-resolution images",
+      "category": "Speed & Performance",
+      "priority": "high",
+      "impact": "Slows down initial page load considerably, causing high bounce rates on mobile.",
+      "action": "Compress all hero images and product listings using WebP/AVIF format and integrate lazy loading."
+    },
+    {
+      "id": "2",
+      "title": "Missing structured schema markup",
+      "category": "SEO",
+      "priority": "high",
+      "impact": "Search engines fail to index B2B product catalogs, fasteners, or service specifications rich data.",
+      "action": "Inject JSON-LD Product schema on detail pages and Organization schema on the homepage."
+    }
+  ],
+  "actionSteps": [
+    {
+      "id": "step-1",
+      "category": "Speed",
+      "text": "Optimize heavy media files and implement next-gen format formats (WebP/AVIF)."
+    },
+    {
+      "id": "step-2",
+      "category": "SEO",
+      "text": "Deploy product, organization, and local business JSON-LD schemas."
+    }
+  ]
+}
+
+Note: Double check that the JSON is valid, with all brackets closed, and overallScore is the average of all scores.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: promptText,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const responseText = response.text || "";
+    if (!responseText) {
+      throw new Error("Gemini API returned an empty response.");
+    }
+
+    let cleanJsonStr = responseText.trim();
+    if (cleanJsonStr.startsWith("```")) {
+      cleanJsonStr = cleanJsonStr.replace(/^```(json)?/, "").replace(/```$/, "").trim();
+    }
+
+    let resultJson;
+    try {
+      resultJson = JSON.parse(cleanJsonStr);
+    } catch (parseErr) {
+      console.error("Gemini invalid JSON output:", cleanJsonStr);
+      return res.status(502).json({
+        error: "Gemini returned invalid JSON",
+        details: "The AI generated response could not be parsed as standard JSON. Please try again."
+      });
+    }
+
+    res.json(resultJson);
+
+  } catch (error: any) {
+    console.error("Error in /api/grade-website:", error);
+    res.status(500).json({
+      error: "Gemini API failed",
+      details: error.message || "An unexpected error occurred during website grading."
+    });
+  }
+});
+
 app.post("/api/gemini/generate", async (req, res) => {
   try {
     const { type, payload } = req.body;

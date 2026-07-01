@@ -36,11 +36,13 @@ interface AuditReport {
   };
   issues: AuditIssue[];
   actionSteps: AuditActionStep[];
+  finalSummary?: string;
 }
 
 export default function WebsiteGrader({ onAddDraft }: GraderProps) {
   const [url, setUrl] = useState("https://www.afcind.com");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [report, setReport] = useState<AuditReport | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -74,93 +76,37 @@ export default function WebsiteGrader({ onAddDraft }: GraderProps) {
 
     setLoading(true);
     setReport(null);
+    setError(null);
 
     try {
-      const response = await fetch("/api/gemini/generate", {
+      const response = await fetch("/api/grade-website", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "grade-website",
-          payload: { url: url.trim() }
+          url: url.trim()
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to compile website audit report");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || "Failed to compile website audit report");
       }
 
-      const data = await response.json();
-      
-      // Handle response parsing safely (sometimes models wrap in markdown or prefix text)
-      let parsedReport: AuditReport;
-      try {
-        let textResult = data.result.trim();
-        // Strip markdown backticks if returned
-        if (textResult.startsWith("```")) {
-          textResult = textResult.replace(/^```(json)?/, "").replace(/```$/, "").trim();
-        }
-        parsedReport = JSON.parse(textResult);
-      } catch (e) {
-        console.warn("Failed to parse JSON, falling back to dummy structure", e);
-        // Robust fallback data based on URL
-        parsedReport = {
-          url: url,
-          overallScore: 74,
-          scores: {
-            seo: 78,
-            speed: 62,
-            mobile: 82,
-            uiUx: 70,
-            technical: 75,
-            content: 80,
-            accessibility: 65,
-            conversion: 64
-          },
-          issues: [
-            {
-              id: "fallback-1",
-              title: "Uncompressed Image specifications",
-              category: "Speed & Performance",
-              priority: "high",
-              impact: "High-resolution product illustrations and collection heroes are slow to render on mobile browsers.",
-              action: "Convert product catalog imagery to next-gen formats (.webp / .avif) and lazy-load scroll contents."
-            },
-            {
-              id: "fallback-2",
-              title: "Lack of semantic markup schema",
-              category: "SEO",
-              priority: "high",
-              impact: "Crawl engines fail to fetch specific B2B industrial catalog metadata specs.",
-              action: "Add JSON-LD Product schema tags on product search specifications templates."
-            },
-            {
-              id: "fallback-3",
-              title: "Inefficient RFQ submission workflow",
-              category: "Conversion Improvements",
-              priority: "high",
-              impact: "Procurement agents drop off the cart because there is no bulk part number uploader (.csv).",
-              action: "Build a drag-and-drop XLS/CSV importer into the active quotation cart."
-            }
-          ],
-          actionSteps: [
-            { id: "fs-1", category: "Speed", text: "Compress heavy web visuals to WebP and enable browser layout caching." },
-            { id: "fs-2", category: "SEO", text: "Inject structural JSON-LD specification schema tags to product layouts." },
-            { id: "fs-3", category: "Conversion", text: "Build a bulk part-number CSV upload widget inside the quote form." }
-          ]
-        };
-      }
-
+      const parsedReport = await response.json();
       setReport(parsedReport);
+
       // Initialize checkboxes
       const initialChecks: Record<string, boolean> = {};
-      parsedReport.actionSteps.forEach((step) => {
-        initialChecks[step.id] = false;
-      });
+      if (parsedReport.actionSteps && Array.isArray(parsedReport.actionSteps)) {
+        parsedReport.actionSteps.forEach((step: any) => {
+          initialChecks[step.id] = false;
+        });
+      }
       setCheckedSteps(initialChecks);
 
-    } catch (error) {
-      console.error(error);
-      alert("Error grading website. Please check your network and Gemini API status.");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "An unexpected error occurred during grading.");
     } finally {
       setLoading(false);
     }
@@ -306,6 +252,16 @@ Best regards,
         </div>
       </div>
 
+      {error && (
+        <div id="grader-error-banner" className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-2xl flex items-start gap-3 shadow-xs">
+          <ShieldAlert className="text-red-500 shrink-0 mt-0.5" size={16} />
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold uppercase tracking-wide">Analysis Interrupted</h4>
+            <p className="text-xs text-red-700 font-medium leading-relaxed">{error}</p>
+          </div>
+        </div>
+      )}
+
       {loading && (
         <div className="bg-white rounded-2xl border border-slate-100 p-8 shadow-sm text-center space-y-4 animate-pulse">
           <div className="flex justify-center">
@@ -330,6 +286,19 @@ Best regards,
 
       {report && !loading && (
         <div className="space-y-6 animate-fade-in">
+          {/* Executive Summary Card */}
+          {report.finalSummary && (
+            <div id="grader-executive-summary" className="bg-slate-900 text-white rounded-2xl border border-slate-800 p-6 shadow-md space-y-2.5">
+              <h3 className="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles size={14} />
+                Executive Audit Summary
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                {report.finalSummary}
+              </p>
+            </div>
+          )}
+
           {/* Main overview metrics */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Circular Gauge Score */}
