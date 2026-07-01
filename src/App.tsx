@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Bot, CheckSquare, Mail, Clock, Table, Sparkles, User, Sun, Calendar, Menu, X, BookOpen, AlertCircle } from "lucide-react";
+import { Bot, CheckSquare, Mail, Clock, Table, Sparkles, User, Sun, Calendar, Menu, X, BookOpen, AlertCircle, Globe } from "lucide-react";
 import ChatHub from "./components/ChatHub";
 import TaskManager from "./components/TaskManager";
 import CommunicationSuite from "./components/CommunicationSuite";
 import WorkAssistant from "./components/WorkAssistant";
 import DecisionHub from "./components/DecisionHub";
+import WebsiteGrader from "./components/WebsiteGrader";
 
 interface SavedDraft {
   id: string;
@@ -15,7 +16,7 @@ interface SavedDraft {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"chat" | "tasks" | "comms" | "work" | "decision">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "tasks" | "comms" | "work" | "decision" | "grader">("chat");
   const [savedDrafts, setSavedDrafts] = useState<SavedDraft[]>([]);
   const [currentTime, setCurrentTime] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -69,6 +70,7 @@ export default function App() {
 
   const navItems = [
     { id: "chat", label: "Assistant Chat", icon: Bot, desc: "Direct dialogue & query audits" },
+    { id: "grader", label: "Website Grader", icon: Globe, desc: "SEO, speed & usability review" },
     { id: "tasks", label: "Daily Task Board", icon: CheckSquare, desc: "Action items & step checklist", badge: urgentCount > 0 ? `${urgentCount} urgent` : undefined },
     { id: "comms", label: "Email & Msg Drafts", icon: Mail, desc: "Audience/Tone customized drafts" },
     { id: "work", label: "Time Log & Bug Explainer", icon: Clock, desc: "Status reports & tech diagnostics" },
@@ -79,6 +81,8 @@ export default function App() {
     switch (activeTab) {
       case "chat":
         return <ChatHub onAddDraft={handleAddDraft} />;
+      case "grader":
+        return <WebsiteGrader onAddDraft={handleAddDraft} />;
       case "tasks":
         return <TaskManager />;
       case "comms":
