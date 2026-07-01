@@ -87,12 +87,19 @@ export default function WebsiteGrader({ onAddDraft }: GraderProps) {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || errorData.error || "Failed to compile website audit report");
+      const responseText = await response.text();
+      let parsedReport: any;
+      try {
+        parsedReport = JSON.parse(responseText);
+      } catch (jsonErr) {
+        const snippet = responseText.substring(0, 150).trim();
+        throw new Error(`Server returned non-JSON response (${response.status} ${response.statusText}): ${snippet || "Empty body"}`);
       }
 
-      const parsedReport = await response.json();
+      if (!response.ok) {
+        throw new Error(parsedReport.details || parsedReport.error || `Server error (${response.status}): ${JSON.stringify(parsedReport)}`);
+      }
+
       setReport(parsedReport);
 
       // Initialize checkboxes

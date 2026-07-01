@@ -31,6 +31,36 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
+async function generateContentWithFallback(ai: GoogleGenAI, options: {
+  model: string;
+  contents: any;
+  config?: any;
+}) {
+  const modelsToTry = [
+    options.model,
+    'gemini-2.5-flash',
+    'gemini-1.5-flash',
+    'gemini-2.5-pro'
+  ];
+
+  let lastError: any = null;
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`Attempting generateContent with model: ${modelName}`);
+      const response = await ai.models.generateContent({
+        ...options,
+        model: modelName
+      });
+      return response;
+    } catch (err: any) {
+      lastError = err;
+      const errMsg = err.message || "";
+      console.warn(`Model ${modelName} failed. Error: ${errMsg}`);
+    }
+  }
+  throw lastError || new Error("All Gemini models failed to respond");
+}
+
 // REST API routes FIRST
 app.post("/api/gemini/chat", async (req, res) => {
   try {
@@ -74,7 +104,7 @@ For your response:
 4. For each issue, provide a direct, actionable step or code change recommendation to resolve it.
 5. Make sure the audit is realistic and tailored to the website's industry. For instance, if auditing afcind.com, mention B2B fastener catalog SKU search latency, bulk RFQ tables, factory-floor tablet layouts, and VMI portal links. Keep the tone expert, helpful, and highly detailed.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithFallback(ai, {
       model: 'gemini-3.5-flash',
       contents,
       config: {
@@ -415,7 +445,7 @@ You MUST return a valid JSON object matching this structure. Do NOT include mark
 
 Note: Double check that the JSON is valid, with all brackets closed, and overallScore is the average of all scores.`;
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithFallback(ai, {
       model: 'gemini-3.5-flash',
       contents: promptText,
       config: {
@@ -611,7 +641,7 @@ Make sure to adjust the scores and specific descriptions to represent an actual 
       prompt = payload.prompt;
     }
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithFallback(ai, {
       model: 'gemini-3.5-flash',
       contents: prompt,
     });
