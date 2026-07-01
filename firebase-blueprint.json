@@ -1,0 +1,80 @@
+{
+  "entities": {
+    "Task": {
+      "title": "Task",
+      "description": "Represents a personal productivity task.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "priority": { "type": "string", "enum": ["urgent", "important", "low", "pending", "completed"] },
+        "status": { "type": "string", "enum": ["pending", "completed", "in-progress"] },
+        "dueDate": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "priority", "status", "userId", "createdAt", "updatedAt"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "A conversation thread with the personal AI assistant.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "userId", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "An individual message in a chat session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "sessionId", "role", "content", "createdAt"]
+    },
+    "Draft": {
+      "title": "Draft",
+      "description": "A drafted message, email, report, or comparison.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "content", "type", "userId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "tasks": {
+      "schema": "Task",
+      "description": "Collection of tasks for personal daily planning."
+    },
+    "chatSessions": {
+      "schema": "ChatSession",
+      "description": "Collection of conversational chat threads."
+    },
+    "chatSessions/{sessionId}/messages": {
+      "schema": "ChatMessage",
+      "description": "Subcollection of messages inside a chat thread."
+    },
+    "drafts": {
+      "schema": "Draft",
+      "description": "Saved email/message drafts and summaries."
+    }
+  }
+}
