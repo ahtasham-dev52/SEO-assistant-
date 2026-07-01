@@ -106,7 +106,7 @@ export default function App() {
     <div id="app-root-shell" className="flex h-screen w-screen bg-slate-50 font-sans overflow-hidden text-slate-800">
       
       {/* LEFT SIDEBAR (Desktop) */}
-      <aside className="hidden lg:flex flex-col w-72 bg-slate-900 border-r border-slate-800 p-5 text-slate-300 select-none shrink-0 justify-between">
+      <aside className="hidden lg:flex flex-col w-72 bg-red-950 border-r border-red-900 p-5 text-red-100 select-none shrink-0 justify-between">
         <div className="space-y-6">
           {/* Logo Brand */}
           <div className="flex items-center gap-2 px-1">
@@ -119,20 +119,20 @@ export default function App() {
             </div>
           </div>
 
-          <hr className="border-slate-800" />
+          <hr className="border-red-900" />
 
           {/* Assistant profile block */}
-          <div className="bg-slate-850 border border-slate-800/80 rounded-xl p-3.5 space-y-2">
+          <div className="bg-red-900/40 border border-red-800/50 rounded-xl p-3.5 space-y-2">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 border border-slate-700 text-xs font-bold text-teal-400">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-900 border border-red-800 text-xs font-bold text-teal-400">
                 AI
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white leading-tight">Gemini Assistant</p>
-                <span className="text-[10px] text-slate-500 block truncate">ahtasham6338@gmail.com</span>
+                <span className="text-[10px] text-red-200/60 block truncate">ahtasham6338@gmail.com</span>
               </div>
             </div>
-            <div className="bg-teal-950/20 border border-teal-900/30 rounded-lg px-2.5 py-1.5 flex items-center justify-between">
+            <div className="bg-red-900/20 border border-red-800/30 rounded-lg px-2.5 py-1.5 flex items-center justify-between">
               <span className="text-[10px] text-teal-500 font-semibold font-mono">STATUS</span>
               <span className="flex items-center gap-1 text-[10px] text-teal-400 font-semibold uppercase">
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
@@ -143,7 +143,7 @@ export default function App() {
 
           {/* Navigation Items */}
           <nav className="space-y-1">
-            <span className="text-[9px] uppercase font-bold tracking-wider text-slate-500 px-2 block mb-2">Workspaces</span>
+            <span className="text-[9px] uppercase font-bold tracking-wider text-red-400 px-2 block mb-2">Workspaces</span>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -153,11 +153,11 @@ export default function App() {
                   onClick={() => setActiveTab(item.id as any)}
                   className={`w-full flex items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${
                     isActive
-                      ? "bg-slate-800 text-white border border-slate-700 shadow-sm"
-                      : "hover:bg-slate-800/50 hover:text-slate-200 text-slate-400 border border-transparent"
+                      ? "bg-red-900 text-white border border-red-800 shadow-sm"
+                      : "hover:bg-red-900/40 hover:text-red-100 text-red-200 border border-transparent"
                   }`}
                 >
-                  <Icon size={16} className={`shrink-0 mt-0.5 ${isActive ? 'text-teal-400' : 'text-slate-500'}`} />
+                  <Icon size={16} className={`shrink-0 mt-0.5 ${isActive ? 'text-teal-400' : 'text-red-300'}`} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold">{item.label}</span>
@@ -167,7 +167,7 @@ export default function App() {
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-500 block truncate">{item.desc}</span>
+                    <span className="text-[10px] text-red-300/80 block truncate">{item.desc}</span>
                   </div>
                 </button>
               );
@@ -176,14 +176,14 @@ export default function App() {
         </div>
 
         {/* Footer info (Local clock) */}
-        <div className="space-y-2 pt-4 border-t border-slate-800">
-          <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+        <div className="space-y-2 pt-4 border-t border-red-900">
+          <div className="flex items-center justify-between text-[11px] text-red-300/70 font-mono">
             <span>SESSION TIME</span>
-            <span className="text-slate-300 font-semibold">{currentTime || "--:--:--"}</span>
+            <span className="text-red-200 font-semibold">{currentTime || "--:--:--"}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 font-mono">
+          <div className="flex items-center justify-between text-[11px] text-red-300/70 font-mono">
             <span>WORKING STYLE</span>
-            <span className="text-teal-500 font-semibold">WebDev/DNS</span>
+            <span className="text-teal-400 font-semibold">WebDev/DNS</span>
           </div>
         </div>
       </aside>
@@ -234,12 +234,12 @@ export default function App() {
 
       {/* MOBILE SIDEBAR DRAWEROVERLAY */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden bg-slate-900/40 backdrop-blur-xs">
-          <div className="relative flex flex-col w-72 max-w-xs bg-slate-900 p-5 text-slate-300">
+        <div className="fixed inset-0 z-50 flex lg:hidden bg-red-950/40 backdrop-blur-xs">
+          <div className="relative flex flex-col w-72 max-w-xs bg-red-950 p-5 text-red-100">
             {/* Close button */}
             <button
               onClick={() => setMobileMenuOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="absolute top-4 right-4 text-red-300 hover:text-white"
             >
               <X size={20} />
             </button>
@@ -255,7 +255,7 @@ export default function App() {
                 </div>
               </div>
 
-              <hr className="border-slate-800" />
+              <hr className="border-red-900" />
 
               <nav className="space-y-1">
                 {navItems.map((item) => {
@@ -269,10 +269,10 @@ export default function App() {
                         setMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all cursor-pointer ${
-                        isActive ? "bg-slate-800 text-white" : "hover:bg-slate-800/50 text-slate-400"
+                        isActive ? "bg-red-900 text-white" : "hover:bg-red-900/40 text-red-200"
                       }`}
                     >
-                      <Icon size={16} className={isActive ? 'text-teal-400' : 'text-slate-500'} />
+                      <Icon size={16} className={isActive ? 'text-teal-400' : 'text-red-300'} />
                       <span className="text-xs font-semibold">{item.label}</span>
                     </button>
                   );
